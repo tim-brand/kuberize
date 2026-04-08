@@ -1,0 +1,19 @@
+{
+  "name": "@kuberize/operator",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@kuberize/shared": "workspace:*",
+    "@kubernetes/client-node": "^0.21.0",
+    "js-yaml": "^4.1.0",
+    "simple-git": "^3.27.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/bun": "latest",
+    "typescript": "^5.5.3"
+  }
+}

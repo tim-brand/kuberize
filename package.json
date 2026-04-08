@@ -1,0 +1,8 @@
+{
+  "name": "kuberize",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "test": "bun test"
+  }
+}

@@ -1,0 +1,91 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: kuberizeprojects.kuberize.io
+spec:
+  group: kuberize.io
+  names:
+    kind: KuberizeProject
+    listKind: KuberizeProjectList
+    plural: kuberizeprojects
+    singular: kuberizeproject
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: [displayName, repo, registry, baseDomain, clusterIssuer]
+              properties:
+                displayName:
+                  type: string
+                repo:
+                  type: object
+                  required: [url, branch, secretRef]
+                  properties:
+                    url:
+                      type: string
+                    branch:
+                      type: string
+                    secretRef:
+                      type: string
+                registry:
+                  type: object
+                  required: [url, secretRef]
+                  properties:
+                    url:
+                      type: string
+                    secretRef:
+                      type: string
+                baseDomain:
+                  type: string
+                clusterIssuer:
+                  type: string
+                environments:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    properties:
+                      branch:
+                        type: string
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+              properties:
+                phase:
+                  type: string
+                  enum: [Pending, Ready, Error]
+                lastSyncedAt:
+                  type: string
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                      reason:
+                        type: string
+                      message:
+                        type: string
+      additionalPrinterColumns:
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Domain
+          type: string
+          jsonPath: .spec.baseDomain
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp

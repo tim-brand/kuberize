@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Bun
+bun.lock
+.bun/
+
+# Build output
+dist/
+out/
+build/
+
+# Next.js
+.next/
+
+# TypeScript
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Kubernetes / Helm
+*.kubeconfig
+
+# Misc
+.vercel
+*.pem

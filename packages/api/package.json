@@ -1,0 +1,12 @@
+{
+  "name": "@kuberize/api",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "bun run src/index.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.3",
+    "@types/bun": "latest"
+  }
+}

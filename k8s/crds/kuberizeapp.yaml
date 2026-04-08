@@ -1,0 +1,165 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: kuberizeapps.kuberize.io
+spec:
+  group: kuberize.io
+  names:
+    kind: KuberizeApp
+    listKind: KuberizeAppList
+    plural: kuberizeapps
+    singular: kuberizeapp
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: [projectRef, appName, environment, repo, image, registry, expose, domain, resources, replicas]
+              properties:
+                projectRef:
+                  type: string
+                appName:
+                  type: string
+                environment:
+                  type: string
+                repo:
+                  type: object
+                  required: [url, branch, path, secretRef]
+                  properties:
+                    url:
+                      type: string
+                    branch:
+                      type: string
+                    path:
+                      type: string
+                    secretRef:
+                      type: string
+                image:
+                  type: string
+                registry:
+                  type: object
+                  required: [url, secretRef]
+                  properties:
+                    url:
+                      type: string
+                    secretRef:
+                      type: string
+                serviceRefs:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, envMappings]
+                    properties:
+                      name:
+                        type: string
+                      envMappings:
+                        type: array
+                        items:
+                          type: object
+                          required: [envVar, key]
+                          properties:
+                            envVar:
+                              type: string
+                            key:
+                              type: string
+                env:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, value]
+                    properties:
+                      name:
+                        type: string
+                      value:
+                        type: string
+                expose:
+                  type: object
+                  required: [port]
+                  properties:
+                    port:
+                      type: integer
+                    healthCheck:
+                      type: string
+                domain:
+                  type: string
+                resources:
+                  type: object
+                  required: [requests, limits]
+                  properties:
+                    requests:
+                      type: object
+                      required: [cpu, memory]
+                      properties:
+                        cpu:
+                          type: string
+                        memory:
+                          type: string
+                    limits:
+                      type: object
+                      required: [cpu, memory]
+                      properties:
+                        cpu:
+                          type: string
+                        memory:
+                          type: string
+                replicas:
+                  type: integer
+                  minimum: 0
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+              properties:
+                phase:
+                  type: string
+                  enum: [Pending, Deploying, Running, Error, Stopped]
+                currentImage:
+                  type: string
+                lastDeployedAt:
+                  type: string
+                lastCommit:
+                  type: object
+                  properties:
+                    sha:
+                      type: string
+                    message:
+                      type: string
+                    author:
+                      type: string
+                url:
+                  type: string
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                      reason:
+                        type: string
+                      message:
+                        type: string
+      additionalPrinterColumns:
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Image
+          type: string
+          jsonPath: .status.currentImage
+        - name: URL
+          type: string
+          jsonPath: .status.url
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
