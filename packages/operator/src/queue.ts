@@ -5,6 +5,10 @@ export class ReconcileQueue {
 
   constructor(private handler: (key: string) => Promise<void>) {}
 
+  requeueAfter(key: string, ms: number) {
+    setTimeout(() => this.enqueue(key), ms);
+  }
+
   enqueue(key: string) {
     const existingTimer = this.timers.get(key);
     if (existingTimer !== undefined) {

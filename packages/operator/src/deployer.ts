@@ -1,5 +1,6 @@
 import { appsApi, coreApi, networkingApi } from "./k8s-client.js";
 import { getAppNamespace, type KuberizeApp } from "@kuberize/shared";
+import { type EnvFromSecret } from "./service-refs.js";
 
 function resourceName(app: KuberizeApp) {
   return `kuberize-${app.spec.appName}-${app.spec.environment}`;
@@ -16,12 +17,17 @@ function labels(app: KuberizeApp) {
   };
 }
 
-function buildDeployment(app: KuberizeApp) {
+function buildDeployment(app: KuberizeApp, envFromSecrets: EnvFromSecret[]) {
   const name = resourceName(app);
   const lbl = labels(app);
   const { spec } = app;
 
-  const envVars = (spec.env ?? []).map((e) => ({ name: e.name, value: e.value }));
+  const staticEnv = (spec.env ?? []).map((e) => ({ name: e.name, value: e.value }));
+  const secretEnv = envFromSecrets.map((e) => ({
+    name: e.envVar,
+    valueFrom: { secretKeyRef: { name: e.secretName, key: e.key } },
+  }));
+  const envVars = [...staticEnv, ...secretEnv];
 
   const probe = spec.expose.healthCheck
     ? {
@@ -132,7 +138,7 @@ function is404(err: unknown) {
   );
 }
 
-async function ensureNamespace(namespace: string) {
+export async function ensureNamespace(namespace: string) {
   try {
     await coreApi.readNamespace(namespace);
   } catch (err) {
@@ -153,12 +159,16 @@ async function ensureNamespace(namespace: string) {
   }
 }
 
-export async function deployApp(app: KuberizeApp, clusterIssuer?: string) {
+export async function deployApp(
+  app: KuberizeApp,
+  envFromSecrets: EnvFromSecret[],
+  clusterIssuer?: string
+) {
   const namespace = getAppNamespace(app.spec.projectRef, app.spec.environment);
   await ensureNamespace(namespace);
 
   const name = resourceName(app);
-  const deployment = buildDeployment(app);
+  const deployment = buildDeployment(app, envFromSecrets);
   const service = buildService(app);
   const ingress = buildIngress(app, clusterIssuer);
 

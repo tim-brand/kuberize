@@ -2,8 +2,13 @@ import { watch, customApi } from "../k8s-client.js";
 import { ReconcileQueue } from "../queue.js";
 import { startHealthServer } from "../health.js";
 import { type z } from "zod";
-import { KuberizeAppSchema, KuberizeProjectSchema } from "@kuberize/shared";
-import { deployApp, deleteAppResources } from "../deployer.js";
+import {
+  KuberizeAppSchema,
+  KuberizeProjectSchema,
+  getAppNamespace,
+} from "@kuberize/shared";
+import { deployApp, deleteAppResources, ensureNamespace } from "../deployer.js";
+import { resolveServiceRefs, mirrorConnectionSecrets } from "../service-refs.js";
 
 const GROUP = "kuberize.io";
 const VERSION = "v1alpha1";
@@ -16,7 +21,7 @@ const DELETE_PREFIX = "delete:";
 const pendingDeletes = new Map<string, z.infer<typeof KuberizeAppSchema>>();
 
 export function startAppWatcher(health: ReturnType<typeof startHealthServer>) {
-  const queue = new ReconcileQueue((key) => reconcileApp(key, pendingDeletes));
+  const queue = new ReconcileQueue((key) => reconcileApp(key, pendingDeletes, queue));
   health.registerWatcher("kuberizeapps");
 
   watchLoop();
@@ -84,7 +89,8 @@ export function startAppWatcher(health: ReturnType<typeof startHealthServer>) {
 
 async function reconcileApp(
   key: string,
-  pendingDeletes: Map<string, z.infer<typeof KuberizeAppSchema>>
+  pendingDeletes: Map<string, z.infer<typeof KuberizeAppSchema>>,
+  queue: ReconcileQueue
 ) {
   if (key.startsWith(DELETE_PREFIX)) {
     return deleteApp(key.slice(DELETE_PREFIX.length), pendingDeletes);
@@ -132,6 +138,43 @@ async function reconcileApp(
     return;
   }
 
+  const resolution = await resolveServiceRefs(app);
+  if ("waitingFor" in resolution) {
+    console.log(
+      `[reconcileApp] App "${name}" waiting for service "${resolution.waitingFor}" (${resolution.reason}), requeue in 10s`
+    );
+    try {
+      await customApi.patchNamespacedCustomObjectStatus(
+        GROUP,
+        VERSION,
+        NAMESPACE,
+        PLURAL,
+        name,
+        {
+          status: {
+            phase: "Pending",
+            conditions: [
+              {
+                type: "ServicesReady",
+                status: "False",
+                reason: "WaitingForService",
+                message: `Waiting for service: ${resolution.waitingFor} (${resolution.reason})`,
+              },
+            ],
+          },
+        },
+        undefined,
+        undefined,
+        undefined,
+        { headers: { "Content-Type": "application/merge-patch+json" } }
+      );
+    } catch (err) {
+      console.warn(`[reconcileApp] Failed to patch Pending status for "${name}":`, err);
+    }
+    queue.requeueAfter(`${NAMESPACE}/${name}`, 10_000);
+    return;
+  }
+
   try {
     await customApi.patchNamespacedCustomObjectStatus(
       GROUP,
@@ -149,11 +192,19 @@ async function reconcileApp(
     console.warn(`[reconcileApp] Failed to patch Deploying status for "${name}":`, err);
   }
 
+  const targetNamespace = getAppNamespace(spec.projectRef, spec.environment);
+  try {
+    await ensureNamespace(targetNamespace);
+    await mirrorConnectionSecrets(resolution.resolved, targetNamespace);
+  } catch (err) {
+    throw new Error(`[reconcileApp] Failed to mirror connection secrets for "${name}": ${err}`);
+  }
+
   const clusterIssuer = await resolveClusterIssuer(spec.projectRef);
 
   let deployed: Awaited<ReturnType<typeof deployApp>>;
   try {
-    deployed = await deployApp(app, clusterIssuer);
+    deployed = await deployApp(app, resolution.resolved, clusterIssuer);
   } catch (err) {
     throw new Error(`[reconcileApp] Failed to deploy "${name}": ${err}`);
   }
