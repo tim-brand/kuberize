@@ -8,5 +8,12 @@
   "devDependencies": {
     "typescript": "^5.5.3",
     "@types/bun": "latest"
+  },
+  "dependencies": {
+    "@kuberize/shared": "workspace:*",
+    "@kubernetes/client-node": "^0.21.0",
+    "@octokit/rest": "^22.0.1",
+    "hono": "^4.12.14",
+    "zod": "^3.23.8"
   }
 }
