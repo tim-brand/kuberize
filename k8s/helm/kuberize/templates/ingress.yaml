@@ -1,0 +1,40 @@
+{{- if .Values.ingress.enabled }}
+{{- $baseDomain := required "global.baseDomain is required when ingress is enabled" .Values.global.baseDomain }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kuberize
+  namespace: kuberize-system
+  labels:
+    {{- include "kuberize.labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.global.clusterIssuer | quote }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+    - hosts:
+        - kuberize.{{ $baseDomain }}
+        - kuberize-api.{{ $baseDomain }}
+      secretName: kuberize-tls
+  rules:
+    - host: kuberize.{{ $baseDomain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kuberize-dashboard
+                port:
+                  number: 3000
+    - host: kuberize-api.{{ $baseDomain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kuberize-api
+                port:
+                  number: 3001
+{{- end }}

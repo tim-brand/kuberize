@@ -1,0 +1,9 @@
+apiVersion: v2
+name: kuberize
+description: Self-hosted, Kubernetes-native PaaS
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/timbrand/kuberize
+sources:
+  - https://github.com/timbrand/kuberize

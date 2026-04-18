@@ -1,0 +1,56 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kuberize-operator
+  labels:
+    {{- include "kuberize.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["kuberize.io"]
+    resources: ["kuberizeprojects", "kuberizeapps", "kuberizeservices"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["kuberize.io"]
+    resources: ["kuberizeprojects/status", "kuberizeapps/status", "kuberizeservices/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["namespaces", "secrets", "configmaps", "persistentvolumeclaims", "services"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kuberize-operator
+  labels:
+    {{- include "kuberize.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kuberize-operator
+subjects:
+  - kind: ServiceAccount
+    name: kuberize-operator
+    namespace: kuberize-system
+---
+# The API server needs the same CRD + secret permissions to back its REST endpoints
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kuberize-api
+  labels:
+    {{- include "kuberize.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kuberize-operator
+subjects:
+  - kind: ServiceAccount
+    name: kuberize-api
+    namespace: kuberize-system

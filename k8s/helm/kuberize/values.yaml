@@ -1,0 +1,51 @@
+global:
+  baseDomain: ""
+  clusterIssuer: letsencrypt-prod
+  imagePullSecrets: []
+
+# If apiKey is empty, a random one is generated and stored in a Secret
+apiKey: ""
+githubWebhookSecret: ""
+
+operator:
+  image:
+    repository: ghcr.io/timbrand/kuberize-operator
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+api:
+  image:
+    repository: ghcr.io/timbrand/kuberize-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+dashboard:
+  image:
+    repository: ghcr.io/timbrand/kuberize-dashboard
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 768Mi
+
+ingress:
+  enabled: true
+  className: nginx
