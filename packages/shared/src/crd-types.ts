@@ -71,17 +71,21 @@ export const KuberizeAppSpecSchema = z.object({
   projectRef: z.string(),
   appName: z.string(),
   environment: z.string(),
-  repo: z.object({
-    url: z.string(),
-    branch: z.string(),
-    path: z.string(),
-    secretRef: z.string(),
-  }),
+  repo: z
+    .object({
+      url: z.string(),
+      branch: z.string(),
+      path: z.string(),
+      secretRef: z.string(),
+    })
+    .optional(),
   image: z.string(),
-  registry: z.object({
-    url: z.string(),
-    secretRef: z.string(),
-  }),
+  registry: z
+    .object({
+      url: z.string(),
+      secretRef: z.string(),
+    })
+    .optional(),
   serviceRefs: z
     .array(
       z.object({
@@ -117,6 +121,8 @@ export const KuberizeAppSpecSchema = z.object({
 
 export const KuberizeAppStatusSchema = z.object({
   phase: z.enum(["Pending", "Deploying", "Running", "Error", "Stopped"]),
+  observedGeneration: z.number().optional(),
+  observedImage: z.string().optional(),
   currentImage: z.string().optional(),
   lastDeployedAt: z.string().optional(),
   lastCommit: z

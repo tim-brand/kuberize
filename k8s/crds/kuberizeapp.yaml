@@ -22,7 +22,7 @@ spec:
           properties:
             spec:
               type: object
-              required: [projectRef, appName, environment, repo, image, registry, expose, domain, resources, replicas]
+              required: [projectRef, appName, environment, image, expose, domain, resources, replicas]
               properties:
                 projectRef:
                   type: string

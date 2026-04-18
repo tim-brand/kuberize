@@ -1,6 +1,7 @@
 import { startHealthServer } from "./health.js";
 import { startProjectWatcher } from "./reconcilers/project.js";
 import { startServiceWatcher } from "./reconcilers/service.js";
+import { startAppWatcher } from "./reconcilers/app.js";
 
 console.log("Kuberize operator starting...");
 console.log(`Bun ${Bun.version}`);
@@ -9,6 +10,7 @@ const health = startHealthServer();
 
 startProjectWatcher(health);
 startServiceWatcher(health);
+startAppWatcher(health);
 
 process.on("SIGTERM", () => {
   console.log("Received SIGTERM, shutting down...");
