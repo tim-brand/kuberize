@@ -12,6 +12,7 @@ export const K8sMetadataSchema = z.object({
   name: z.string(),
   namespace: z.string(),
   resourceVersion: z.string().optional(),
+  generation: z.number().optional(),
   uid: z.string().optional(),
   creationTimestamp: z.string().optional(),
   labels: z.record(z.string(), z.string()).optional(),
@@ -151,6 +152,7 @@ export const KuberizeServiceSpecSchema = z.object({
 
 export const KuberizeServiceStatusSchema = z.object({
   phase: z.enum(["Pending", "Provisioning", "Ready", "Error"]),
+  observedGeneration: z.number().optional(),
   connectionSecretRef: z.string().optional(),
   namespace: z.string().optional(),
   conditions: z.array(K8sConditionSchema).optional(),
