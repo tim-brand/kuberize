@@ -1,5 +1,5 @@
 FROM oven/bun:1-alpine AS base
-RUN apk add --no-cache git curl bash tar gzip \
+RUN apk add --no-cache git curl bash tar gzip openssl \
  && curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
 WORKDIR /app
