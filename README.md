@@ -127,20 +127,25 @@ The full schema lives in
 
 ## Installing on a real cluster
 
-The Helm chart at `k8s/helm/kuberize/` installs the full stack
-(operator, API, dashboard, RBAC, CRDs, optional Ingress).
+Each tagged GitHub Release publishes three multi-arch images
+(`linux/amd64` + `linux/arm64`) to GHCR and the Helm chart itself as an
+OCI artifact. Install with:
 
 ```bash
-helm install kuberize ./k8s/helm/kuberize \
+helm install kuberize oci://ghcr.io/tim-brand/charts/kuberize \
+  --version <version> \
   --namespace kuberize-system --create-namespace \
   --set global.baseDomain=kuberize.mycompany.com \
   --set global.clusterIssuer=letsencrypt-prod
 ```
 
-The default `values.yaml` points at `ghcr.io/timbrand/kuberize-*`
-images that **aren't published yet** — you'll need to build and push
-them yourself using the `Dockerfile`s in each package before a helm
-install will reach `Running`.
+The chart's default image tag follows `.Chart.AppVersion`, so
+`--version 0.2.0` pulls `kuberize-operator:0.2.0`,
+`kuberize-api:0.2.0`, and `kuberize-dashboard:0.2.0`. Override any
+individual image with `--set operator.image.tag=sha-abc123`.
+
+You can also install directly from a clone of this repo:
+`helm install kuberize ./k8s/helm/kuberize --set global.baseDomain=...`.
 
 ## Project structure
 

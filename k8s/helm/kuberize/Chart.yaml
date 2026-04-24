@@ -4,6 +4,6 @@ description: Self-hosted, Kubernetes-native PaaS
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
-home: https://github.com/timbrand/kuberize
+home: https://github.com/tim-brand/kuberize
 sources:
-  - https://github.com/timbrand/kuberize
+  - https://github.com/tim-brand/kuberize
