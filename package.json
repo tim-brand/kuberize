@@ -1,6 +1,10 @@
 {
   "name": "kuberize",
   "private": true,
+  "author": {
+    "name": "Tim Brand",
+    "email": "t.brand@gmail.com"
+  },
   "license": "Apache-2.0",
   "workspaces": ["packages/*"],
   "scripts": {
