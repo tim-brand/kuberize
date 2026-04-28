@@ -54,6 +54,7 @@ export const KuberizeProjectSpecSchema = z.object({
 
 export const KuberizeProjectStatusSchema = z.object({
   phase: z.enum(["Pending", "Ready", "Error"]),
+  observedGeneration: z.number().optional(),
   lastSyncedAt: z.string().optional(),
   conditions: z.array(K8sConditionSchema).optional(),
 });
