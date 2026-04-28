@@ -89,6 +89,18 @@ async function reconcileProject(key: string) {
     throw new Error(`[reconcileProject] Failed to validate project "${name}": ${err}`);
   }
 
+  const generation = project.metadata.generation;
+  if (
+    project.status?.phase === "Ready" &&
+    generation !== undefined &&
+    project.status.observedGeneration === generation
+  ) {
+    console.log(
+      `[reconcileProject] Project "${name}" already Ready for generation ${generation}, skipping`
+    );
+    return;
+  }
+
   const projectName = project.metadata.name;
   const environments = project.spec.environments ?? {};
   const envNamespaces = Object.keys(environments).map((envName) =>
@@ -109,7 +121,13 @@ async function reconcileProject(key: string) {
       NAMESPACE,
       PLURAL,
       name,
-      { status: { phase: "Ready", lastSyncedAt: new Date().toISOString() } },
+      {
+        status: {
+          phase: "Ready",
+          observedGeneration: generation,
+          lastSyncedAt: new Date().toISOString(),
+        },
+      },
       undefined,
       undefined,
       undefined,

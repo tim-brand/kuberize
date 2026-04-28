@@ -15,7 +15,13 @@ export async function runHelm(args: string[]) {
   ]);
 
   if (exitCode !== 0) {
-    throw new Error(`helm ${args[0]} failed (exit ${exitCode}): ${stderr.trim()}`);
+    const detail = [
+      stderr.trim() ? `stderr: ${stderr.trim()}` : "",
+      stdout.trim() ? `stdout: ${stdout.trim()}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    throw new Error(`helm ${args[0]} failed (exit ${exitCode})\n${detail}`);
   }
 
   return { stdout, stderr };
