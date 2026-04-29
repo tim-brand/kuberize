@@ -1,5 +1,5 @@
 import simpleGit from "simple-git";
-import { parse } from "js-yaml";
+import { load as parseYaml } from "js-yaml";
 import { KuberizeConfigSchema } from "@kuberize/shared";
 import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -20,7 +20,7 @@ export async function parseKuberizeConfig(repoUrl: string, branch: string, token
       throw new Error("No .kuberize.yaml found in repository root");
     }
 
-    const parsed = parse(rawYaml);
+    const parsed = parseYaml(rawYaml);
 
     return KuberizeConfigSchema.parse(parsed);
   } finally {
