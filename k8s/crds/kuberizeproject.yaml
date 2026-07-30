@@ -64,6 +64,8 @@ spec:
                   enum: [Pending, Ready, Error]
                 lastSyncedAt:
                   type: string
+                lastHandledSyncRequest:
+                  type: string
                 conditions:
                   type: array
                   items:

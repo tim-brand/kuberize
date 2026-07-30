@@ -3,9 +3,10 @@ import { z } from "zod";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { customApi } from "../k8s-client.js";
 import { GROUP, SYSTEM_NAMESPACE, VERSION, is404 } from "../k8s-helpers.js";
-import { slugify } from "@kuberize/shared";
+import { normalizeRepoUrl, slugify, SYNC_REQUEST_ANNOTATION } from "@kuberize/shared";
 
 const APPS_PLURAL = "kuberizeapps";
+const PROJECTS_PLURAL = "kuberizeprojects";
 
 const DeployBody = z.object({
   project: z.string(),
@@ -94,6 +95,15 @@ deploy.post("/", async (c) => {
   return c.json({ patched, missing });
 });
 
+const PushPayload = z.object({
+  ref: z.string(),
+  repository: z.object({
+    html_url: z.string().optional(),
+    clone_url: z.string().optional(),
+    ssh_url: z.string().optional(),
+  }),
+});
+
 const github = new Hono();
 
 github.post("/", async (c) => {
@@ -119,8 +129,73 @@ github.post("/", async (c) => {
   const event = c.req.header("X-GitHub-Event");
   console.log(`[github webhook] verified ${event} event`);
 
-  // Full push event → CRD sync is deferred. Acknowledge for now.
-  return c.json({ ok: true, event, processed: false });
+  if (event !== "push") {
+    return c.json({ ok: true, event, processed: false });
+  }
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(rawBody);
+  } catch {
+    return c.json({ error: "malformed push payload" }, 400);
+  }
+  const parsed = PushPayload.safeParse(payload);
+  if (!parsed.success) {
+    return c.json({ error: "malformed push payload" }, 400);
+  }
+
+  // Only branch pushes can change synced config; ignore tag pushes.
+  const branch = parsed.data.ref.replace(/^refs\/heads\//, "");
+  if (branch === parsed.data.ref) {
+    return c.json({ ok: true, event, processed: false });
+  }
+
+  const { html_url, clone_url, ssh_url } = parsed.data.repository;
+  const pushedUrls = new Set(
+    [html_url, clone_url, ssh_url]
+      .filter((u): u is string => typeof u === "string")
+      .map(normalizeRepoUrl)
+  );
+
+  // A push is only relevant to projects that read their .kuberize.yaml from
+  // the pushed branch of the pushed repo.
+  const { body } = await customApi.listNamespacedCustomObject(
+    GROUP,
+    VERSION,
+    SYSTEM_NAMESPACE,
+    PROJECTS_PLURAL
+  );
+  const items = (body as { items?: unknown[] }).items ?? [];
+  const matching = items.filter((it) => {
+    const repo = (it as { spec?: { repo?: { url?: string; branch?: string } } }).spec?.repo;
+    return (
+      typeof repo?.url === "string" &&
+      pushedUrls.has(normalizeRepoUrl(repo.url)) &&
+      repo.branch === branch
+    );
+  });
+
+  const requested: string[] = [];
+  for (const it of matching) {
+    const name = (it as { metadata?: { name?: string } }).metadata?.name;
+    if (typeof name !== "string") continue;
+    await customApi.patchNamespacedCustomObject(
+      GROUP,
+      VERSION,
+      SYSTEM_NAMESPACE,
+      PROJECTS_PLURAL,
+      name,
+      { metadata: { annotations: { [SYNC_REQUEST_ANNOTATION]: new Date().toISOString() } } },
+      undefined,
+      undefined,
+      undefined,
+      { headers: { "Content-Type": "application/merge-patch+json" } }
+    );
+    requested.push(name);
+    console.log(`[github webhook] requested sync for project "${name}" (push to ${branch})`);
+  }
+
+  return c.json({ ok: true, event, processed: true, branch, requested });
 });
 
 export const webhooks = { deploy, github };
