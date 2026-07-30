@@ -4,6 +4,7 @@ import { startHealthServer } from "../health.js";
 import { type z } from "zod";
 import { KuberizeProjectSchema, getAppNamespace, getSharedNamespace } from "@kuberize/shared";
 import { syncProjectFromConfig, SyncError } from "../syncers/project-sync.js";
+import { pendingSyncRequest } from "../sync-request.js";
 
 const GROUP = "kuberize.io";
 const VERSION = "v1alpha1";
@@ -109,10 +110,16 @@ async function reconcileProject(key: string, queue: ReconcileQueue) {
   }
 
   // Generation guard — only short-circuits watch-driven events. Poll events always
-  // run a full sync so we pick up upstream .kuberize.yaml changes.
+  // run a full sync so we pick up upstream .kuberize.yaml changes, and a pending
+  // sync-request annotation (stamped by the webhook handler) forces one too.
   const generation = project.metadata.generation;
+  const syncRequest = pendingSyncRequest(project);
+  if (syncRequest !== undefined) {
+    console.log(`[reconcileProject] Sync requested at ${syncRequest} for "${name}"`);
+  }
   if (
     !isPoll &&
+    syncRequest === undefined &&
     project.status?.phase === "Ready" &&
     generation !== undefined &&
     project.status.observedGeneration === generation
@@ -182,6 +189,7 @@ async function reconcileProject(key: string, queue: ReconcileQueue) {
           phase: "Ready",
           observedGeneration: generation,
           lastSyncedAt: new Date().toISOString(),
+          ...(syncRequest !== undefined ? { lastHandledSyncRequest: syncRequest } : {}),
           conditions: [condition],
         },
       },

@@ -56,6 +56,8 @@ export const KuberizeProjectStatusSchema = z.object({
   phase: z.enum(["Pending", "Ready", "Error"]),
   observedGeneration: z.number().optional(),
   lastSyncedAt: z.string().optional(),
+  // Last value of the sync-request annotation that has been fully processed.
+  lastHandledSyncRequest: z.string().optional(),
   conditions: z.array(K8sConditionSchema).optional(),
 });
 
