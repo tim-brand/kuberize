@@ -30,3 +30,8 @@ export async function deleteProjectAction(projectId: string) {
   revalidatePath("/projects");
   redirect("/projects");
 }
+
+export async function enableWebhookAction(projectId: string) {
+  await api.enableProjectWebhook(projectId);
+  revalidatePath(`/projects/${projectId}`);
+}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { api } from "../../../lib/api";
 import { DeployStatus } from "../../../components/deploy-status";
+import { GitSyncCard } from "../../../components/git-sync-card";
 
 export default async function ProjectDetailPage({
   params,
@@ -17,9 +18,10 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [appsRes, servicesRes] = await Promise.all([
+  const [appsRes, servicesRes, webhookStatus] = await Promise.all([
     api.listApps(projectId),
     api.listServices(projectId),
+    api.getProjectWebhook(projectId).catch(() => null),
   ]);
 
   return (
@@ -38,6 +40,12 @@ export default async function ProjectDetailPage({
           <DeployStatus phase={project.status?.phase} />
         </div>
       </div>
+
+      <GitSyncCard
+        projectId={projectId}
+        branch={project.spec.repo.branch}
+        status={webhookStatus}
+      />
 
       <section className="mb-10">
         <h2 className="mb-3 text-lg font-medium">Apps</h2>

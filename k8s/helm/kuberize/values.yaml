@@ -25,6 +25,9 @@ api:
     repository: ghcr.io/tim-brand/kuberize-api
     tag: ""  # defaults to .Chart.AppVersion in deployment templates
     pullPolicy: IfNotPresent
+  # Public base URL of the API, used as the GitHub webhook payload target.
+  # Defaults to https://kuberize-api.<global.baseDomain> when ingress is enabled.
+  publicUrl: ""
   resources:
     requests:
       cpu: 100m
