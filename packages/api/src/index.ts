@@ -5,6 +5,7 @@ import { projects } from "./routes/projects.js";
 import { apps } from "./routes/apps.js";
 import { services } from "./routes/services.js";
 import { webhooks } from "./routes/webhooks.js";
+import { projectWebhook } from "./routes/project-webhook.js";
 
 const app = new Hono();
 app.onError(errorHandler);
@@ -20,6 +21,7 @@ api.use("*", apiKeyAuth);
 api.route("/projects", projects);
 api.route("/projects/:projectId/apps", apps);
 api.route("/projects/:projectId/services", services);
+api.route("/projects/:projectId/webhook", projectWebhook);
 api.route("/webhooks/deploy", webhooks.deploy);
 
 app.route("/api/v1", api);

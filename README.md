@@ -24,9 +24,12 @@ single source of truth.
 - **Wires services into apps** by mirroring the connection secret into
   the app's namespace and injecting env vars via `secretKeyRef`. Apps
   wait (with a "Pending" status) until their services are `Ready`.
+- **Syncs `.kuberize.yaml` from Git** — the operator polls the config
+  branch every 60s, and an HMAC-verified GitHub webhook endpoint makes
+  pushes apply within seconds (see
+  [Instant config sync](#instant-config-sync-github-webhook)).
 - **Exposes a REST API** (Hono) over three CRDs, plus a `/webhooks/deploy`
-  endpoint CI can call with a new image tag, and an HMAC-verified GitHub
-  webhook endpoint.
+  endpoint CI can call with a new image tag.
 - **Ships a Next.js dashboard** (Server Components + Server Actions) and
   a single-executable Bun CLI.
 
@@ -147,6 +150,45 @@ individual image with `--set operator.image.tag=sha-abc123`.
 You can also install directly from a clone of this repo:
 `helm install kuberize ./k8s/helm/kuberize --set global.baseDomain=...`.
 
+## Instant config sync (GitHub webhook)
+
+The operator picks up `.kuberize.yaml` changes by polling the project's
+config branch every 60 seconds (interval: `KUBERIZE_SYNC_INTERVAL_MS`).
+Adding a GitHub **push webhook** makes changes apply within seconds
+instead; polling stays active as a fallback.
+
+**From the dashboard (easiest):** open the project and click
+**Enable instant sync** on the *Git sync* card. This creates the webhook
+through the project's GitHub token — the token needs the
+`admin:repo_hook` scope (classic PAT) or webhook read/write permission
+(fine-grained PAT). If the token can't manage hooks, the card shows the
+manual values instead.
+
+**Manually:** in the GitHub repo under *Settings → Webhooks → Add
+webhook*, set:
+
+| Field        | Value                                        |
+|--------------|----------------------------------------------|
+| Payload URL  | `https://<api-host>/webhooks/github`         |
+| Content type | `application/json`                           |
+| Secret       | the `GITHUB_WEBHOOK_SECRET` value (see below)|
+| Events       | Just the push event                          |
+
+With the Helm chart, the API host is `kuberize-api.<global.baseDomain>`
+and the secret can be read from the cluster:
+
+```bash
+kubectl get secret kuberize-api-secrets -n kuberize-system \
+  -o jsonpath='{.data.GITHUB_WEBHOOK_SECRET}' | base64 -d
+```
+
+Only pushes to the branch the project reads its config from
+(`spec.repo.branch`) trigger a sync — pushes to other branches and tag
+pushes are acknowledged and ignored. The API stamps a
+`kuberize.io/requested-sync-at` annotation on the `KuberizeProject`;
+the operator syncs and records it in `status.lastHandledSyncRequest`,
+so duplicate watch events never double-sync.
+
 ## Project structure
 
 ```
@@ -166,8 +208,6 @@ k8s/
 Known gaps from the v1 scope, intentionally not yet implemented:
 
 - Pod log streaming (API SSE + dashboard viewer + CLI streaming)
-- Full GitHub push-event → CRD sync (HMAC verification works; the
-  sync step is stubbed)
 - CI workflow generator wired up as an API route
 - Bcrypt-hashed API keys backed by a Kubernetes Secret
 - Dashboard dependency graph (reactflow)

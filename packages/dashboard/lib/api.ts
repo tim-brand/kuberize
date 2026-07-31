@@ -28,6 +28,21 @@ async function call<T>(path: string, { method = "GET", body }: FetchOptions = {}
   return (await res.json()) as T;
 }
 
+export type ProjectWebhookStatus = {
+  payloadUrl?: string;
+  configured: boolean;
+  canCreate: boolean;
+  hook?: {
+    id: number;
+    active: boolean;
+    events: string[];
+    updatedAt?: string;
+    lastResponse?: { code: number | null; status: string };
+  };
+  manual?: { payloadUrl: string; contentType: string; secret: string };
+  error?: "not_configured" | "not_github" | "token_scope" | "token_missing";
+};
+
 export const api = {
   listProjects: () =>
     call<{ items: KuberizeProject[] }>("/api/v1/projects"),
@@ -54,4 +69,12 @@ export const api = {
 
   listServices: (projectId: string) =>
     call<{ items: KuberizeService[] }>(`/api/v1/projects/${projectId}/services`),
+
+  getProjectWebhook: (projectId: string) =>
+    call<ProjectWebhookStatus>(`/api/v1/projects/${projectId}/webhook`),
+
+  enableProjectWebhook: (projectId: string) =>
+    call<{ created: boolean }>(`/api/v1/projects/${projectId}/webhook`, {
+      method: "POST",
+    }),
 };

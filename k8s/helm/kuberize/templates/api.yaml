@@ -40,6 +40,10 @@ spec:
                 secretKeyRef:
                   name: kuberize-api-secrets
                   key: GITHUB_WEBHOOK_SECRET
+            {{- if or .Values.api.publicUrl (and .Values.ingress.enabled .Values.global.baseDomain) }}
+            - name: KUBERIZE_API_PUBLIC_URL
+              value: {{ .Values.api.publicUrl | default (printf "https://kuberize-api.%s" .Values.global.baseDomain) | quote }}
+            {{- end }}
           ports:
             - name: http
               containerPort: 3001
