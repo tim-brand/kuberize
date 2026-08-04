@@ -111,6 +111,9 @@ function appSpec(
   const envOverride = app.environments?.[envName];
   const domain =
     envOverride?.domain ?? getAutoSubdomain(app.name, envName, project.spec.baseDomain);
+  // Branch resolution: per-app override → environment mapping → project config branch.
+  const branch =
+    envOverride?.branch ?? config.environments[envName]?.branch ?? project.spec.repo.branch;
 
   const spec: Record<string, unknown> = {
     projectRef: projectName,
@@ -135,7 +138,7 @@ function appSpec(
   if (project.spec.repo) {
     spec.repo = {
       url: project.spec.repo.url,
-      branch: project.spec.repo.branch,
+      branch,
       path: app.path,
       secretRef: project.spec.repo.secretRef,
     };
