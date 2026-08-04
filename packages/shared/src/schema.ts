@@ -56,16 +56,47 @@ export const EnvironmentSchema = z.object({
   branch: z.string(),
 });
 
-export const KuberizeConfigSchema = z.object({
-  project: z.string(),
-  environments: z
-    .record(z.string(), EnvironmentSchema)
-    .refine((r) => Object.keys(r).length > 0, {
-      message: "At least one environment is required",
-    }),
-  services: z.array(ServiceSchema).optional(),
-  apps: z.array(AppSchema),
-});
+export const KuberizeConfigSchema = z
+  .object({
+    project: z.string(),
+    environments: z
+      .record(z.string(), EnvironmentSchema)
+      .refine((r) => Object.keys(r).length > 0, {
+        message: "At least one environment is required",
+      }),
+    services: z.array(ServiceSchema).optional(),
+    apps: z.array(AppSchema),
+  })
+  .superRefine((config, ctx) => {
+    // Every environment reference must point at a declared environment —
+    // a typo would otherwise be silently ignored by the syncer.
+    const declared = Object.keys(config.environments);
+    const known = new Set(declared);
+    const hint = `declared environments: ${declared.join(", ")}`;
+
+    config.apps.forEach((app, appIdx) => {
+      for (const key of Object.keys(app.environments ?? {})) {
+        if (!known.has(key)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["apps", appIdx, "environments", key],
+            message: `Unknown environment "${key}" — ${hint}`,
+          });
+        }
+      }
+      (app.env ?? []).forEach((envVar, envIdx) => {
+        for (const name of envVar.environments ?? []) {
+          if (!known.has(name)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["apps", appIdx, "env", envIdx, "environments"],
+              message: `Unknown environment "${name}" — ${hint}`,
+            });
+          }
+        }
+      });
+    });
+  });
 
 // Note: service references in env[].fromService (format: "serviceName.key") are not
 // validated against declared services at parse time — referential integrity is enforced
