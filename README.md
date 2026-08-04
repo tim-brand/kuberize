@@ -123,7 +123,17 @@ apps:
     env:
       - name: DATABASE_URL
         fromService: db.connectionString
+    environments:            # optional per-app, per-environment overrides
+      staging:
+        branch: feature/big-redesign   # this app's staging tracks a different branch
+        # domain: preview.my-app.dev   # custom domain override also lives here
 ```
+
+An app's branch resolves as: per-app override
+(`apps[i].environments[<env>].branch`) → environment mapping
+(`environments.<env>.branch`) → the project's config branch. The
+`.kuberize.yaml` itself is always read from the project's config branch,
+regardless of overrides.
 
 The full schema lives in
 [`packages/shared/src/schema.ts`](packages/shared/src/schema.ts).
