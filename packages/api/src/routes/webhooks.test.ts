@@ -25,7 +25,11 @@ function sign(body: string) {
 }
 
 async function readJson(res: Response) {
-  return (await res.json()) as { processed?: boolean; requested?: string[] };
+  return (await res.json()) as {
+    processed?: boolean;
+    requested?: string[];
+    skipped?: string[];
+  };
 }
 
 function githubRequest(event: string, payload: unknown, signature?: string) {
@@ -133,5 +137,41 @@ describe("github webhook", () => {
   test("rejects a malformed push payload", async () => {
     const res = await githubRequest("push", { nope: true });
     expect(res.status).toBe(400);
+  });
+
+  test("skips sync for a code-only push and reports the project as skipped", async () => {
+    const res = await githubRequest("push", {
+      ...pushPayload,
+      commits: [{ added: ["src/new.ts"], modified: ["README.md"], removed: [] }],
+    });
+    expect(res.status).toBe(200);
+    const json = await readJson(res);
+    expect(json.processed).toBe(true);
+    expect(json.requested).toEqual([]);
+    expect(json.skipped).toEqual(["arcade-games"]);
+    expect(patchNamespacedCustomObject).not.toHaveBeenCalled();
+  });
+
+  test("requests sync when a push touches .kuberize.yaml", async () => {
+    const res = await githubRequest("push", {
+      ...pushPayload,
+      commits: [{ modified: [".kuberize.yaml"] }],
+    });
+    const json = await readJson(res);
+    expect(json.requested).toEqual(["arcade-games"]);
+    expect(json.skipped).toEqual([]);
+    expect(patchNamespacedCustomObject).toHaveBeenCalledTimes(1);
+  });
+
+  test("requests sync on a force push even without .kuberize.yaml in commits", async () => {
+    const res = await githubRequest("push", {
+      ...pushPayload,
+      forced: true,
+      commits: [{ modified: ["src/index.ts"] }],
+    });
+    const json = await readJson(res);
+    expect(json.requested).toEqual(["arcade-games"]);
+    expect(json.skipped).toEqual([]);
+    expect(patchNamespacedCustomObject).toHaveBeenCalledTimes(1);
   });
 });
