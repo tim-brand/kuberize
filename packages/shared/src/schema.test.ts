@@ -11,6 +11,68 @@ import {
   getAutoSubdomain,
 } from "./utils.js";
 
+describe("environment reference validation", () => {
+  const baseApp = {
+    name: "api",
+    path: "apps/api",
+    build: { type: "image", image: "ghcr.io/org/api:latest" },
+    expose: { port: 3000 },
+  };
+  const base = {
+    project: "my-app",
+    environments: {
+      production: { branch: "main" },
+      staging: { branch: "develop" },
+    },
+  };
+
+  it("accepts overrides and env gating that reference declared environments", () => {
+    const input = {
+      ...base,
+      apps: [
+        {
+          ...baseApp,
+          environments: { staging: { branch: "feature/x" } },
+          env: [{ name: "DEBUG", value: "1", environments: ["staging"] }],
+        },
+      ],
+    };
+    expect(KuberizeConfigSchema.safeParse(input).success).toBe(true);
+  });
+
+  it("rejects an app override key that is not a declared environment", () => {
+    const input = {
+      ...base,
+      apps: [{ ...baseApp, environments: { stagin: { branch: "feature/x" } } }],
+    };
+    const result = KuberizeConfigSchema.safeParse(input);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find(
+        (i) => i.path.join(".") === "apps.0.environments.stagin"
+      );
+      expect(issue?.message).toContain('Unknown environment "stagin"');
+      expect(issue?.message).toContain("production, staging");
+    }
+  });
+
+  it("rejects an env var gating entry that is not a declared environment", () => {
+    const input = {
+      ...base,
+      apps: [{ ...baseApp, env: [{ name: "DEBUG", value: "1", environments: ["prod"] }] }],
+    };
+    const result = KuberizeConfigSchema.safeParse(input);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const issue = result.error.issues.find(
+        (i) => i.path.join(".") === "apps.0.env.0.environments"
+      );
+      expect(issue?.message).toContain('Unknown environment "prod"');
+      expect(issue?.message).toContain("production, staging");
+    }
+  });
+});
+
 describe("KuberizeConfigSchema", () => {
   it("parses a valid minimal config", () => {
     const input = {
