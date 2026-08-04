@@ -152,8 +152,10 @@ async function reconcileProject(key: string, queue: ReconcileQueue) {
     message?: string;
     lastTransitionTime: string;
   };
+  let syncedSha: string | undefined;
   try {
-    const summary = await syncProjectFromConfig(project);
+    const { summary, sha } = await syncProjectFromConfig(project);
+    syncedSha = sha;
     console.log(`[reconcileProject] sync ok for "${name}": ${summary}`);
     condition = {
       type: "ConfigSynced",
@@ -190,6 +192,7 @@ async function reconcileProject(key: string, queue: ReconcileQueue) {
           observedGeneration: generation,
           lastSyncedAt: new Date().toISOString(),
           ...(syncRequest !== undefined ? { lastHandledSyncRequest: syncRequest } : {}),
+          ...(syncedSha !== undefined ? { lastSyncedSha: syncedSha } : {}),
           conditions: [condition],
         },
       },

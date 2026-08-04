@@ -66,6 +66,8 @@ spec:
                   type: string
                 lastHandledSyncRequest:
                   type: string
+                lastSyncedSha:
+                  type: string
                 conditions:
                   type: array
                   items:

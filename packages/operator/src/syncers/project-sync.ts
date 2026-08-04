@@ -25,7 +25,7 @@ export class SyncError extends Error {
  * Clones the project's repo, parses .kuberize.yaml, computes the desired set of
  * KuberizeApp + KuberizeService CRDs, then creates / updates / deletes to converge.
  *
- * Returns a one-line summary on success. Throws SyncError on failure with a typed reason.
+ * Returns { summary, sha } on success — a one-line reconcile summary and the HEAD SHA of the clone that was synced. Throws SyncError on failure with a typed reason.
  */
 export async function syncProjectFromConfig(project: KuberizeProject) {
   const projectName = project.metadata.name;
@@ -33,12 +33,15 @@ export async function syncProjectFromConfig(project: KuberizeProject) {
   const token = await readGithubToken(project.spec.repo.secretRef);
 
   let config: KuberizeConfig;
+  let sha: string;
   try {
-    config = await parseKuberizeConfig(
+    const result = await parseKuberizeConfig(
       project.spec.repo.url,
       project.spec.repo.branch,
       token
     );
+    config = result.config;
+    sha = result.sha;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (message.includes("No .kuberize.yaml")) {
@@ -77,14 +80,14 @@ export async function syncProjectFromConfig(project: KuberizeProject) {
       "KuberizeApp"
     );
 
-    return `services ${svcSummary}; apps ${appSummary}`;
+    return { summary: `services ${svcSummary}; apps ${appSummary}`, sha };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     throw new SyncError("ApplyFailed", message);
   }
 }
 
-async function readGithubToken(secretName: string) {
+export async function readGithubToken(secretName: string) {
   try {
     const result = await coreApi.readNamespacedSecret(secretName, NAMESPACE);
     const data = (result.body as { data?: Record<string, string> }).data ?? {};
