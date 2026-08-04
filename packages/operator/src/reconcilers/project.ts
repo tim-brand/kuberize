@@ -3,8 +3,10 @@ import { ReconcileQueue } from "../queue.js";
 import { startHealthServer } from "../health.js";
 import { type z } from "zod";
 import { KuberizeProjectSchema, getAppNamespace, getSharedNamespace } from "@kuberize/shared";
-import { syncProjectFromConfig, SyncError } from "../syncers/project-sync.js";
+import { syncProjectFromConfig, SyncError, readGithubToken } from "../syncers/project-sync.js";
 import { pendingSyncRequest } from "../sync-request.js";
+import { canSkipSync } from "../sync-skip.js";
+import { getRemoteHead } from "../remote-head.js";
 
 const GROUP = "kuberize.io";
 const VERSION = "v1alpha1";
@@ -140,6 +142,31 @@ async function reconcileProject(key: string, queue: ReconcileQueue) {
   ];
   for (const ns of namespacesToEnsure) {
     await ensureNamespace(ns);
+  }
+
+  // Quiet-poll short-circuit: when nothing changed on our side (no sync
+  // request, spec observed, last sync succeeded), one ls-remote ref lookup
+  // replaces the full clone if the branch HEAD hasn't moved. Any failure
+  // here falls through to the full sync, which owns error reporting.
+  if (canSkipSync(project, isPoll, syncRequest)) {
+    let remoteSha: string | undefined;
+    try {
+      const token = await readGithubToken(project.spec.repo.secretRef);
+      remoteSha = await getRemoteHead(
+        project.spec.repo.url,
+        project.spec.repo.branch,
+        token
+      );
+    } catch {
+      remoteSha = undefined;
+    }
+    if (remoteSha !== undefined && remoteSha === project.status?.lastSyncedSha) {
+      console.log(
+        `[reconcileProject] sync skipped for "${name}" (HEAD ${remoteSha.slice(0, 7)} unchanged)`
+      );
+      queue.requeueAfter(pollKey, POLL_INTERVAL_MS);
+      return;
+    }
   }
 
   // Sync from .kuberize.yaml. Best-effort: failures become a status condition,
