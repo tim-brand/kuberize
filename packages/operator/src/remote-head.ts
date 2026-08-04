@@ -1,10 +1,15 @@
 import simpleGit from "simple-git";
 
-// Parses `git ls-remote` output ("<sha>\t<ref>\n" per line) into the first SHA.
-export function parseLsRemoteOutput(output: string) {
-  const firstLine = output.split("\n")[0] ?? "";
-  const sha = firstLine.split("\t")[0]?.trim();
-  return sha ? sha : undefined;
+// Parses `git ls-remote` output ("<sha>\t<ref>\n" per line) into the SHA of
+// the exact ref — ls-remote patterns are tail matches, so a branch named
+// "foo/refs/heads/main" could otherwise shadow "refs/heads/main".
+export function parseLsRemoteOutput(output: string, branch: string) {
+  const ref = `refs/heads/${branch}`;
+  for (const line of output.split("\n")) {
+    const [sha, lineRef] = line.split("\t");
+    if (lineRef?.trim() === ref && sha) return sha.trim();
+  }
+  return undefined;
 }
 
 /**
@@ -16,7 +21,7 @@ export async function getRemoteHead(repoUrl: string, branch: string, token: stri
   try {
     const authedUrl = repoUrl.replace("https://", `https://${token}@`);
     const output = await simpleGit().listRemote([authedUrl, `refs/heads/${branch}`]);
-    return parseLsRemoteOutput(output);
+    return parseLsRemoteOutput(output, branch);
   } catch {
     return undefined;
   }

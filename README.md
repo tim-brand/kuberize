@@ -207,7 +207,9 @@ safe. The 60-second poll is also cheap when idle: the operator records the
 synced commit in `status.lastSyncedSha` and skips the repo clone entirely
 (one `git ls-remote` ref lookup instead) while the branch HEAD is unchanged.
 Manually annotating the project with `kuberize.io/requested-sync-at` always
-forces a full sync.
+forces a full sync. This also means drift repair (e.g. a manually deleted
+`KuberizeApp`) waits for the next push or forced sync while the branch HEAD
+is unchanged — annotate the project to repair immediately.
 
 Note: each app's `triggerOn` list is *not* consulted for sync gating — it is
 reserved for CI build filtering (v2).
