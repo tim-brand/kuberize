@@ -199,6 +199,19 @@ pushes are acknowledged and ignored. The API stamps a
 the operator syncs and records it in `status.lastHandledSyncRequest`,
 so duplicate watch events never double-sync.
 
+**What triggers a sync:** the webhook only requests an instant sync when the
+push actually touched `.kuberize.yaml` — code-only pushes are acknowledged and
+skipped (the response lists them under `skipped`). Force pushes and pushes
+whose payload doesn't carry file lists are treated as config changes to stay
+safe. The 60-second poll is also cheap when idle: the operator records the
+synced commit in `status.lastSyncedSha` and skips the repo clone entirely
+(one `git ls-remote` ref lookup instead) while the branch HEAD is unchanged.
+Manually annotating the project with `kuberize.io/requested-sync-at` always
+forces a full sync.
+
+Note: each app's `triggerOn` list is *not* consulted for sync gating — it is
+reserved for CI build filtering (v2).
+
 ## Project structure
 
 ```

@@ -48,6 +48,10 @@ export const AppSchema = z.object({
   expose: AppExposeSchema,
   services: z.array(z.string()).optional(),
   env: z.array(EnvVarSchema).optional(),
+  // Reserved: paths outside the app's own path that should trigger a rebuild.
+  // Unused in v1 (image-first deploys) — will be consumed by the CI workflow
+  // generator and dockerfile builds (v2). Push-webhook sync gating only looks
+  // at .kuberize.yaml itself, never at these paths.
   triggerOn: z.array(z.string()).optional(),
   environments: z.record(z.string(), AppEnvironmentOverrideSchema).optional(),
 });
