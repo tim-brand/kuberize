@@ -4,6 +4,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { customApi } from "../k8s-client.js";
 import { GROUP, SYSTEM_NAMESPACE, VERSION, is404 } from "../k8s-helpers.js";
 import { normalizeRepoUrl, slugify, SYNC_REQUEST_ANNOTATION } from "@kuberize/shared";
+import { pushTouchesConfig } from "../github/push-relevance.js";
 
 const APPS_PLURAL = "kuberizeapps";
 const PROJECTS_PLURAL = "kuberizeprojects";
@@ -102,6 +103,17 @@ const PushPayload = z.object({
     clone_url: z.string().optional(),
     ssh_url: z.string().optional(),
   }),
+  forced: z.boolean().optional(),
+  deleted: z.boolean().optional(),
+  commits: z
+    .array(
+      z.object({
+        added: z.array(z.string()).optional(),
+        modified: z.array(z.string()).optional(),
+        removed: z.array(z.string()).optional(),
+      })
+    )
+    .optional(),
 });
 
 const github = new Hono();
@@ -175,10 +187,23 @@ github.post("/", async (c) => {
     );
   });
 
+  // Evaluated once per push: only a push that (as far as the payload shows)
+  // touched .kuberize.yaml warrants an instant sync. Everything else is
+  // picked up by the operator's regular poll.
+  const touchesConfig = pushTouchesConfig(parsed.data);
+
   const requested: string[] = [];
+  const skipped: string[] = [];
   for (const it of matching) {
     const name = (it as { metadata?: { name?: string } }).metadata?.name;
     if (typeof name !== "string") continue;
+    if (!touchesConfig) {
+      skipped.push(name);
+      console.log(
+        `[github webhook] skipped sync for project "${name}" (push to ${branch} did not touch .kuberize.yaml)`
+      );
+      continue;
+    }
     await customApi.patchNamespacedCustomObject(
       GROUP,
       VERSION,
@@ -195,7 +220,7 @@ github.post("/", async (c) => {
     console.log(`[github webhook] requested sync for project "${name}" (push to ${branch})`);
   }
 
-  return c.json({ ok: true, event, processed: true, branch, requested });
+  return c.json({ ok: true, event, processed: true, branch, requested, skipped });
 });
 
 export const webhooks = { deploy, github };

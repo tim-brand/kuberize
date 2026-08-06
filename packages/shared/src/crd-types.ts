@@ -58,6 +58,8 @@ export const KuberizeProjectStatusSchema = z.object({
   lastSyncedAt: z.string().optional(),
   // Last value of the sync-request annotation that has been fully processed.
   lastHandledSyncRequest: z.string().optional(),
+  // HEAD commit SHA of the clone the last successful sync read config from.
+  lastSyncedSha: z.string().optional(),
   conditions: z.array(K8sConditionSchema).optional(),
 });
 

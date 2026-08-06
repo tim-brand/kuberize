@@ -13,6 +13,10 @@ export async function parseKuberizeConfig(repoUrl: string, branch: string, token
 
     await simpleGit().clone(authedUrl, tempDir, ["--depth", "1", "--branch", branch]);
 
+    // The clone's own HEAD is authoritative for what this sync read —
+    // recording it (rather than a separate ls-remote) avoids any race.
+    const sha = (await simpleGit(tempDir).revparse(["HEAD"])).trim();
+
     let rawYaml: string;
     try {
       rawYaml = await readFile(join(tempDir, ".kuberize.yaml"), "utf8");
@@ -22,7 +26,7 @@ export async function parseKuberizeConfig(repoUrl: string, branch: string, token
 
     const parsed = parseYaml(rawYaml);
 
-    return KuberizeConfigSchema.parse(parsed);
+    return { config: KuberizeConfigSchema.parse(parsed), sha };
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
